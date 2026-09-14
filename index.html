@@ -30,6 +30,9 @@ else if(h==="#contacts"||h==="#quiz"){try{if(typeof window.ym==="function")windo
 .wf-down-btn.wf-down-up:hover{background:#1a1220}
 @media(prefers-reduced-motion:reduce){.wf-down-btn,.wf-down-btn:hover,.wf-down-btn:active{transition:none;animation:none!important}}
 @keyframes wf-cta-glow{0%,100%{box-shadow:0 0 0 0 rgba(217,56,70,.4),0 0 22px 0 rgba(142,68,173,.22),6px 6px 0 #2D2133}50%{box-shadow:0 0 0 6px rgba(217,56,70,0),0 0 30px 6px rgba(142,68,173,.32),6px 6px 0 #2D2133}}
+.wf-down-btn.wf-down-labeled{width:auto;max-width:calc(100vw - 3rem);padding:0 14px;gap:8px;white-space:nowrap}
+.wf-down-btn .wf-down-label{font-size:14px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+@media(min-width:768px){.wf-down-btn .wf-down-label{font-size:15px}}
 </style>
 
 <script id="wf-tg-fallback">
@@ -80,8 +83,34 @@ else if(h==="#contacts"||h==="#quiz"){try{if(typeof window.ym==="function")windo
 (function(){
   var SECTIONS=["#services","#process","#team","#quiz","#contacts"];
   var TOP_ID="#top";
+  var LABELS={"#services":"Услуги","#process":"Процесс","#team":"Команда","#quiz":"Расчёт","#contacts":"Контакты","#top":"Наверх"};
+  var AB_KEY="wf_down_ab";
   var btn=null;
+  var arrowEl=null;
+  var labelEl=null;
   var ticking=false;
+  var variant="A";
+  function getVariant(){
+    var f="";
+    try{f=((new URLSearchParams(window.location.search)).get("wf_ab")||"").toUpperCase();}catch(e){}
+    if(f==="A"||f==="B") return f;
+    var s="";
+    try{s=(localStorage.getItem(AB_KEY)||"").toUpperCase();}catch(e){}
+    if(s==="A"||s==="B") return s;
+    var v=Math.random()<0.5?"A":"B";
+    try{localStorage.setItem(AB_KEY,v);}catch(e){}
+    return v;
+  }
+  function track(goal,params){
+    try{if(typeof window.ym==="function"&&window.WF_YM_ID){window.ym(window.WF_YM_ID,"reachGoal",goal,params);}}catch(e){}
+    try{
+      if(!window.dataLayer) window.dataLayer=[];
+      var ev={event:goal};
+      for(var k in params) ev[k]=params[k];
+      window.dataLayer.push(ev);
+    }catch(e){}
+  }
+  function abParams(target){return {ab_test:"down_btn",variant:variant,target:target};}
   function getNextTarget(){
     var scrollY=window.scrollY||window.pageYOffset;
     var vh=window.innerHeight;
@@ -106,11 +135,18 @@ else if(h==="#contacts"||h==="#quiz"){try{if(typeof window.ym==="function")windo
     if(!btn) return;
     var t=getNextTarget();
     var up=t.up;
-    btn.textContent=up?"↑":"↓";
-    btn.setAttribute("aria-label",up?"Наверх":"Вниз к следующей секции");
     btn.dataset.target=t.id;
     if(up) btn.classList.add("wf-down-up");
     else btn.classList.remove("wf-down-up");
+    if(variant==="B"){
+      btn.classList.add("wf-down-labeled");
+      btn.setAttribute("aria-label",up?"Наверх":"К секции «"+(LABELS[t.id]||"")+"»");
+      arrowEl.textContent=up?"↑":"↓";
+      labelEl.textContent=up?"Наверх":(LABELS[t.id]||"");
+    }else{
+      btn.textContent=up?"↑":"↓";
+      btn.setAttribute("aria-label",up?"Наверх":"Вниз к следующей секции");
+    }
   }
   function onScroll(){
     if(ticking) return;
@@ -137,16 +173,29 @@ else if(h==="#contacts"||h==="#quiz"){try{if(typeof window.ym==="function")windo
     btn.id="wf-down-btn";
     btn.type="button";
     btn.className="wf-down-btn";
+    if(variant==="B"){
+      btn.classList.add("wf-down-labeled");
+      arrowEl=document.createElement("span");
+      arrowEl.className="wf-down-arrow";
+      arrowEl.textContent="↓";
+      labelEl=document.createElement("span");
+      labelEl.className="wf-down-label";
+      labelEl.textContent=LABELS[SECTIONS[0]]||"";
+      btn.appendChild(arrowEl);
+      btn.appendChild(labelEl);
+    }
     btn.setAttribute("aria-label","Вниз к следующей секции");
-    btn.textContent="↓";
+    if(variant!=="B") btn.textContent="↓";
     btn.addEventListener("click",function(e){
       e.preventDefault();
       var tid=btn.dataset.target||"#services";
       scrollToTarget(tid);
-      try{if(typeof window.ym==="function"&&window.WF_YM_ID){window.ym(window.WF_YM_ID,"reachGoal","cta_click",{target:tid});}}catch(err){}
+      track("ab_down_click",abParams(tid));
+      track("cta_click",abParams(tid));
     });
     document.body.appendChild(btn);
     updateBtn();
+    track("ab_down_show",abParams(btn.dataset.target));
     window.addEventListener("scroll",onScroll,{passive:true});
     window.addEventListener("resize",onScroll,{passive:true});
   }
@@ -157,6 +206,7 @@ else if(h==="#contacts"||h==="#quiz"){try{if(typeof window.ym==="function")windo
       window.addEventListener("load",function(){requestAnimationFrame(function(){requestAnimationFrame(init);});});
     }
   }
+  variant=getVariant();
   onReady();
 })();
 </script>
